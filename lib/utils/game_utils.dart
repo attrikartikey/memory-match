@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:math';
 class Game {
-  final Color hiddenCard = Colors.red;
+  final Color hiddenCard = Color.fromARGB(255, 255, 219, 0);
   List<Color>? gameColors;
   List<String>? gameImg;
   // List<Color> cards = [
