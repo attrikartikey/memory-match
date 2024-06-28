@@ -37,9 +37,10 @@ class _HomeScreenState extends State<HomeScreen> {
   final _clickAudioplayer = AudioPlayer();
   final _noMatchAudioplayer = AudioPlayer();
   final _winningAudioplayer = AudioPlayer();
+  final _completeAudioplayer = AudioPlayer();
 
   int tapCount = 0; 
-
+  bool isMuted = false; // Variable to track mute state
 
   //game stats
   int tries = 0;
@@ -51,7 +52,8 @@ class _HomeScreenState extends State<HomeScreen> {
     _game.initGame();
     _clickAudioplayer.setSourceUrl('sounds/click.mp3'); 
     _noMatchAudioplayer.setSourceUrl('sounds/NO!.mp3');
-    _winningAudioplayer.setSourceUrl('sounds/positive game win.mp3');// Preload the sound
+    _winningAudioplayer.setSourceUrl('sounds/positive game win.mp3');
+    _completeAudioplayer..setSourceUrl('sounds/level-passed.mp3');  // Preload the sound
     _noMatchAudioplayer.setVolume(0.5);
   }
 
@@ -65,8 +67,10 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void showMatchDialog(String imagePath) {
-
-    _winningAudioplayer.play(AssetSource('sounds/positive game win.mp3'));
+    if (!isMuted) {
+      _winningAudioplayer.seek(Duration.zero);
+      _winningAudioplayer.play(AssetSource('sounds/positive game win.mp3'));
+    }
     
     showDialog(
       context: context,
@@ -94,10 +98,69 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
+  void showWinnerDialog() {
+    Future.delayed(Duration(seconds: 4), () {
+      if (!isMuted) {
+        _winningAudioplayer.seek(Duration.zero);
+        _winningAudioplayer.play(AssetSource('sounds/level-passed.mp3'));
+      }
+      
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (BuildContext context) {
+          return Dialog(
+            backgroundColor: Colors.transparent,
+            insetPadding: EdgeInsets.all(0), // Remove default padding
+            child: Container(
+              width: MediaQuery.of(context).size.width,
+              height: MediaQuery.of(context).size.height,
+              decoration: BoxDecoration(
+                image: DecorationImage(
+                  image: AssetImage("assets/images/win.webp"),
+                  fit: BoxFit.cover,
+                ),
+              ),
+            ),
+          );
+        },
+      );
+
+      Future.delayed(Duration(seconds: 2), () {
+        Navigator.of(context).pop();
+        resetGame(); // Reset the game after showing the dialog
+      });
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Color.fromARGB(255, 38, 53, 93), //background colour
+      appBar: AppBar(
+        title: null,
+        backgroundColor: Color.fromARGB(255, 38, 53, 93),
+         leading: IconButton(
+          icon: Icon(Icons.arrow_back, color: Color.fromARGB(255, 255, 219, 0)),
+          iconSize: 30.0,
+          onPressed: () {
+            // Add your navigation logic here
+            Navigator.pop(context); // Example: Return to the previous screen
+            // Navigator.pushNamed(context, '/home'); // Example: Navigate to the home screen if using named routes
+          },
+        ),
+        actions: [
+          IconButton(
+            icon: Icon(isMuted ? Icons.volume_off : Icons.volume_up  , color: Color.fromARGB(255, 255, 219, 0)),
+            iconSize: 30.0,
+            onPressed: () {
+              setState(() {
+                isMuted = !isMuted;
+              });
+            },
+          ),
+        ],
+      ),
       body: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.center,
@@ -116,8 +179,8 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
           Container(
-            height: 380,
-            width: 380,
+            height: 360,
+            width: 360,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.all(Radius.circular(10)),
               color: Color.fromARGB(255, 25, 43, 94),
@@ -148,9 +211,10 @@ class _HomeScreenState extends State<HomeScreen> {
                   return GestureDetector(
                     onTap: () {
                       tapCount++;
-                      if(tapCount % 2 != 0){
-                      // Play click sound
-                      _clickAudioplayer.play(AssetSource('sounds/click.mp3'));
+                      if(tapCount % 2 != 0 && !isMuted){
+                        // Play click sound
+                         _clickAudioplayer.seek(Duration.zero);
+                        _clickAudioplayer.play(AssetSource('sounds/click.mp3'));
                       }
 
                       // Check if the card is already revealed or matched
@@ -168,6 +232,11 @@ class _HomeScreenState extends State<HomeScreen> {
                             score += 100;
                             showMatchDialog(_game.matchCheck[0].values.first);
                             _game.matchCheck.clear(); // Clear match check for the next pair
+
+                            // Check if the game is won
+                            if (score == 800) {
+                              showWinnerDialog();
+                            }
                           } else {
                             // Cards do not match, hide them after a delay
                             Future.delayed(Duration(milliseconds: 500), () {
@@ -176,7 +245,10 @@ class _HomeScreenState extends State<HomeScreen> {
                                 _game.gameImg![_game.matchCheck[1].keys.first] = _game.hiddenCardpath;
                                 _game.matchCheck.clear(); // Clear match check for the next pair
                               });
-                             _noMatchAudioplayer.play(AssetSource('sounds/NO!.mp3'));
+                              if (!isMuted) {
+                                _noMatchAudioplayer.seek(Duration.zero);
+                                _noMatchAudioplayer.play(AssetSource('sounds/NO!.mp3'));
+                              }
                             });
                           }
                         } else if (_game.matchCheck.length > 2) {
@@ -186,7 +258,10 @@ class _HomeScreenState extends State<HomeScreen> {
                       } else {
                         // Vibrate the phone if the card is already revealed
                         Vibration.vibrate(duration: 500);
-                        _noMatchAudioplayer.play(AssetSource('sounds/NO!.mp3'));
+                        if (!isMuted) {
+                          _noMatchAudioplayer.seek(Duration.zero);
+                          _noMatchAudioplayer.play(AssetSource('sounds/NO!.mp3'));
+                        }
                       }
                     },
                     child: Container(
@@ -216,7 +291,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
           SizedBox(
-            height: 24.0,
+            height: 15.0,
           ),
           ElevatedButton(
             onPressed: resetGame,
@@ -230,8 +305,12 @@ class _HomeScreenState extends State<HomeScreen> {
               style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 20), // White text color
             ),
           ),
+          SizedBox(
+            height: 15,
+          )
         ],
       ),
     );
   }
 }
+
